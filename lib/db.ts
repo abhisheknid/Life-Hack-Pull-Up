@@ -1,70 +1,79 @@
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
+import { Pool } from "pg";
 import { seedHacks } from "@/data/seed";
 import type { Hack, NewHackInput } from "@/lib/types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DB_PATH = path.join(DATA_DIR, "life-hacks.db");
-
 declare global {
   // eslint-disable-next-line no-var
-  var __lifeHacksDb: Database.Database | undefined;
+  var __lifeHacksPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var __lifeHacksReady: Promise<void> | undefined;
 }
 
-function initDb(): Database.Database {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+function getConnectionString(): string {
+  const url =
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING;
 
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS hacks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      url TEXT NOT NULL,
-      category TEXT NOT NULL,
-      purpose TEXT NOT NULL,
-      context TEXT NOT NULL DEFAULT '',
-      tags TEXT NOT NULL DEFAULT '',
-      pickTags TEXT NOT NULL DEFAULT '',
-      createdAt TEXT NOT NULL
+  if (!url) {
+    throw new Error(
+      "No Postgres connection string found. Set POSTGRES_URL (or DATABASE_URL) in your environment. " +
+        "In Vercel, add the Postgres storage integration to inject this automatically."
     );
-  `);
-
-  const count = db.prepare("SELECT COUNT(*) as c FROM hacks").get() as { c: number };
-  if (count.c === 0) {
-    const insert = db.prepare(`
-      INSERT INTO hacks (name, url, category, purpose, context, tags, pickTags, createdAt)
-      VALUES (@name, @url, @category, @purpose, @context, @tags, @pickTags, @createdAt)
-    `);
-    const insertMany = db.transaction((rows: typeof seedHacks) => {
-      for (const row of rows) {
-        insert.run({
-          name: row.name,
-          url: row.url,
-          category: row.category,
-          purpose: row.purpose,
-          context: row.context,
-          tags: row.tags.join(","),
-          pickTags: row.pickTags.join(","),
-          createdAt: new Date().toISOString(),
-        });
-      }
-    });
-    insertMany(seedHacks);
   }
-
-  return db;
+  return url;
 }
 
-export function getDb(): Database.Database {
-  if (!global.__lifeHacksDb) {
-    global.__lifeHacksDb = initDb();
+function getPool(): Pool {
+  if (!global.__lifeHacksPool) {
+    global.__lifeHacksPool = new Pool({
+      connectionString: getConnectionString(),
+      ssl: /localhost|127\.0\.0\.1/.test(getConnectionString()) ? false : { rejectUnauthorized: false },
+    });
   }
-  return global.__lifeHacksDb;
+  return global.__lifeHacksPool;
+}
+
+async function ensureReady(): Promise<void> {
+  if (!global.__lifeHacksReady) {
+    global.__lifeHacksReady = (async () => {
+      const pool = getPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS hacks (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          url TEXT NOT NULL,
+          category TEXT NOT NULL,
+          purpose TEXT NOT NULL,
+          context TEXT NOT NULL DEFAULT '',
+          tags TEXT NOT NULL DEFAULT '',
+          pick_tags TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+      `);
+
+      const { rows } = await pool.query("SELECT COUNT(*)::int AS count FROM hacks");
+      if (rows[0].count === 0) {
+        for (const row of seedHacks) {
+          await pool.query(
+            `INSERT INTO hacks (name, url, category, purpose, context, tags, pick_tags)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              row.name,
+              row.url,
+              row.category,
+              row.purpose,
+              row.context,
+              row.tags.join(","),
+              row.pickTags.join(","),
+            ]
+          );
+        }
+      }
+    })();
+  }
+  return global.__lifeHacksReady;
 }
 
 function rowToHack(row: any): Hack {
@@ -76,50 +85,45 @@ function rowToHack(row: any): Hack {
     purpose: row.purpose,
     context: row.context,
     tags: row.tags ? row.tags.split(",").filter(Boolean) : [],
-    pickTags: row.pickTags ? row.pickTags.split(",").filter(Boolean) : [],
-    createdAt: row.createdAt,
+    pickTags: row.pick_tags ? row.pick_tags.split(",").filter(Boolean) : [],
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
   };
 }
 
-export function listHacks(): Hack[] {
-  const db = getDb();
-  const rows = db.prepare("SELECT * FROM hacks ORDER BY category ASC, name ASC").all();
+export async function listHacks(): Promise<Hack[]> {
+  await ensureReady();
+  const { rows } = await getPool().query("SELECT * FROM hacks ORDER BY category ASC, name ASC");
   return rows.map(rowToHack);
 }
 
-export function addHack(input: NewHackInput): Hack {
-  const db = getDb();
-  const createdAt = new Date().toISOString();
-  const info = db
-    .prepare(
-      `INSERT INTO hacks (name, url, category, purpose, context, tags, pickTags, createdAt)
-       VALUES (@name, @url, @category, @purpose, @context, @tags, @pickTags, @createdAt)`
-    )
-    .run({
-      name: input.name.trim(),
-      url: input.url.trim(),
-      category: input.category.trim(),
-      purpose: input.purpose.trim(),
-      context: (input.context ?? "").trim(),
-      tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean).join(","),
-      pickTags: "",
-      createdAt,
-    });
-
-  const row = db.prepare("SELECT * FROM hacks WHERE id = ?").get(info.lastInsertRowid);
-  return rowToHack(row);
+export async function addHack(input: NewHackInput): Promise<Hack> {
+  await ensureReady();
+  const { rows } = await getPool().query(
+    `INSERT INTO hacks (name, url, category, purpose, context, tags, pick_tags)
+     VALUES ($1, $2, $3, $4, $5, $6, '')
+     RETURNING *`,
+    [
+      input.name.trim(),
+      input.url.trim(),
+      input.category.trim(),
+      input.purpose.trim(),
+      (input.context ?? "").trim(),
+      (input.tags ?? []).map((t) => t.trim()).filter(Boolean).join(","),
+    ]
+  );
+  return rowToHack(rows[0]);
 }
 
-export function deleteHack(id: number): boolean {
-  const db = getDb();
-  const info = db.prepare("DELETE FROM hacks WHERE id = ?").run(id);
-  return info.changes > 0;
+export async function deleteHack(id: number): Promise<boolean> {
+  await ensureReady();
+  const result = await getPool().query("DELETE FROM hacks WHERE id = $1", [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
-export function listCategories(): string[] {
-  const db = getDb();
-  const rows = db.prepare("SELECT DISTINCT category FROM hacks ORDER BY category ASC").all() as {
-    category: string;
-  }[];
+export async function listCategories(): Promise<string[]> {
+  await ensureReady();
+  const { rows } = await getPool().query(
+    "SELECT DISTINCT category FROM hacks ORDER BY category ASC"
+  );
   return rows.map((r) => r.category);
 }

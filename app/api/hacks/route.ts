@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const q = (searchParams.get("q") ?? "").trim().toLowerCase();
   const category = (searchParams.get("category") ?? "").trim();
 
-  let hacks = listHacks();
+  let hacks = await listHacks();
 
   if (category && category !== "All") {
     hacks = hacks.filter((h) => h.category === category);
@@ -60,6 +60,6 @@ export async function POST(req: NextRequest) {
 
   const normalizedUrl = url ? (url.match(/^https?:\/\//i) ? url : `https://${url}`) : "";
 
-  const hack = addHack({ name, url: normalizedUrl, category, purpose, context, tags });
+  const hack = await addHack({ name, url: normalizedUrl, category, purpose, context, tags });
   return NextResponse.json({ hack }, { status: 201 });
 }
