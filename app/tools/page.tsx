@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import HackCard from "@/components/HackCard";
+import { Spark } from "@/components/Doodles";
 import { categoryColor } from "@/lib/categoryColors";
 import type { Hack } from "@/lib/types";
 
@@ -44,34 +45,40 @@ export default function ToolsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">All Tools</h1>
-        <p className="mt-1 text-sm text-ink/60 dark:text-white/60">
-          Every tool and resource, grouped by category, with its purpose and link.
-        </p>
-      </div>
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-mintfrom to-mintto px-6 py-10 sm:px-12 sm:py-12">
+        <div className="pointer-events-none absolute -left-8 -bottom-10 h-40 w-40 rounded-full bg-white/25 sm:h-52 sm:w-52" />
+        <div className="relative">
+          <h1 className="font-display text-3xl font-extrabold leading-tight text-ink sm:text-4xl">
+            All Tools
+            <Spark className="ml-1 inline h-5 w-5 align-top text-accent sm:h-6 sm:w-6" />
+          </h1>
+          <p className="mt-2 max-w-lg text-sm text-ink/70 sm:text-base">
+            Every tool and resource, grouped by category, with its purpose and link.
+          </p>
 
-      {!loading && grouped.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-1.5">
-          {grouped.map(([cat, items]) => (
-            <a
-              key={cat}
-              href={`#${slugify(cat)}`}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${categoryColor(cat)}`}
-            >
-              {cat} <span className="opacity-60">({items.length})</span>
-            </a>
-          ))}
+          {!loading && grouped.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              {grouped.map(([cat, items]) => (
+                <a
+                  key={cat}
+                  href={`#${slugify(cat)}`}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold sm:text-sm ${categoryColor(cat)}`}
+                >
+                  {cat} <span className="opacity-60">({items.length})</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
       {loading ? (
-        <p className="text-sm text-ink/50 dark:text-white/50">Loading…</p>
+        <p className="mt-8 text-sm text-ink/50 dark:text-white/50">Loading…</p>
       ) : (
-        <div className="space-y-10">
+        <div className="mt-10 space-y-12">
           {grouped.map(([cat, items]) => (
             <section key={cat} id={slugify(cat)} className="scroll-mt-32">
-              <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+              <h2 className="mb-3 flex items-center gap-2 px-1 font-display text-lg font-bold">
                 {cat}
                 <span className="text-sm font-normal text-ink/40 dark:text-white/40">
                   {items.length}

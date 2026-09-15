@@ -7,17 +7,31 @@
 }
 
 body {
-  background-color: #fafaf8;
+  background-color: #fdfcf6;
   color: #16161a;
 }
 
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #0f0f12;
+    background-color: #131217;
     color: #f2f2f5;
   }
 }
 
 * {
   scrollbar-width: thin;
+}
+
+.underline-scribble {
+  position: relative;
+  white-space: nowrap;
+}
+
+.underline-scribble svg {
+  position: absolute;
+  left: -26%;
+  top: -42%;
+  width: 152%;
+  height: 190%;
+  pointer-events: none;
 }
