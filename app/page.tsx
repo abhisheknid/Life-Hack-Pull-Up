@@ -5,6 +5,21 @@ import HackCard from "@/components/HackCard";
 import { Spark, ScribbleCircle } from "@/components/Doodles";
 import type { Hack } from "@/lib/types";
 
+const SUGGESTED_CUES = [
+  "password",
+  "privacy",
+  "cook",
+  "learn",
+  "course",
+  "research",
+  "startup",
+  "AI",
+  "video",
+  "debate",
+  "draw",
+  "radio",
+];
+
 export default function HomePage() {
   const [hacks, setHacks] = useState<Hack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +65,7 @@ export default function HomePage() {
             <Spark className="ml-1 inline h-5 w-5 align-top text-accent sm:h-7 sm:w-7" />
           </h1>
           <p className="mx-auto mt-4 max-w-md text-sm text-ink/70 sm:text-base">
-            Search by what you need, what it&rsquo;s for, or a keyword — try &ldquo;focus&rdquo;,
+            Search by what you need, what it&rsquo;s for, or a keyword — try &ldquo;privacy&rdquo;,
             &ldquo;password&rdquo;, &ldquo;cook&rdquo;, or &ldquo;learn&rdquo;.
           </p>
 
@@ -63,6 +78,26 @@ export default function HomePage() {
               placeholder="Search hacks, tools, and gems…"
               className="w-full rounded-full border-0 bg-white px-6 py-4 text-center text-base font-medium text-ink shadow-[0_8px_24px_rgba(0,0,0,0.08)] outline-none ring-accent/30 placeholder:text-ink/30 focus:ring-2 sm:text-lg"
             />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold text-ink/40">Try:</span>
+            {SUGGESTED_CUES.map((cue) => (
+              <button
+                key={cue}
+                onClick={() => {
+                  setQuery((prev) => (prev.toLowerCase() === cue.toLowerCase() ? "" : cue));
+                  setCategory("All");
+                }}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  query.toLowerCase() === cue.toLowerCase()
+                    ? "border-accent bg-accent text-white"
+                    : "border-black/10 bg-white/60 text-ink/60 hover:bg-white"
+                }`}
+              >
+                {cue}
+              </button>
+            ))}
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
