@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Poppins, Plus_Jakarta_Sans } from "next/font/google";
-import Nav from "@/components/Nav";
 import "./globals.css";
 
 const display = Poppins({
@@ -24,8 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="min-h-screen bg-cream font-sans text-ink dark:bg-[#131217] dark:text-white">
-        <Nav />
-        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">{children}</main>
+        {children}
       </body>
     </html>
   );

@@ -17,6 +17,18 @@ const config: Config = {
         mintto: "#c9ecd6",
         skytint: { DEFAULT: "#c9eefb", soft: "#e3f7fd" },
         peach: { DEFAULT: "#ffd9b0", soft: "#ffe9d1" },
+        // Ashika Mehta brand page: peach primary, deep teal secondary, coral accent.
+        ash: {
+          cream: "#fff8f2",
+          blush: "#ffeadb",
+          peach: "#ffd3b6",
+          apricot: "#ffb088",
+          coral: "#ee6a50",
+          teal: "#0f4f58",
+          deep: "#0a3a41",
+          mist: "#d8ecea",
+          ink: "#2b1c18",
+        },
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
